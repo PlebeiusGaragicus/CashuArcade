@@ -23,3 +23,9 @@ adafruit-circuitpython-rgb-display
 # NO SUCH PACKAGE
 # rainbowio
 # adafruit-circuitpython-rotaryio
+
+# ---
+qrcode
+
+marshmallow>=3.13,<4.0
+cashu

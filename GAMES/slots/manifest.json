@@ -1,19 +1,20 @@
 {
     "launcher": {
-        "name": "Smack the Cat!",
-        "description": "test",
+        "name": "🎰 Casino Slots",
+        "description": "Classic casino slot machine with emoji symbols. Match three to win big!",
         "author": "CashuArcade",
         "version": "1.0.0",
         "type": "pygame",
         "screenshot": "screenshot.png",
         "launch": {
             "command": "python",
-            "args": ["-m", "testgame"],
+            "args": ["-m", "slots"],
             "venv": null,
             "cwd": "."
         }
     },
     "game_config": {
-        "debug": true
+        "debug": false,
+        "starting_credits": 10
     }
 }
