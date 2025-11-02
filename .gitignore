@@ -1,2 +1,11 @@
 __pycache__/
+*.pyc
+.DS_Store
+
+# Virtual environments
 venv/
+*egg-info
+
+# Config (keep config.env.sample in git)
+config.env
+.env

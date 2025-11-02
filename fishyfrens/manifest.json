@@ -1,10 +1,25 @@
 {
-    "name": "Your Frens are Fishy!",
-    "debug": true,
-    "skip_to_gameplay": true,
-    "starting_level": 0,
-    "draw_masks": true,
-    "god_mode": true,
-    "fastswimmer": false,
-    "quiet": true
+    "launcher": {
+        "name": "Your Frens are Fishy!",
+        "description": "A fun underwater adventure where you swim with your fishy friends",
+        "author": "CashuArcade",
+        "version": "1.0.0",
+        "type": "pygame",
+        "screenshot": "screenshot.png",
+        "launch": {
+            "command": "python",
+            "args": ["-m", "fishyfrens"],
+            "venv": null,
+            "cwd": "."
+        }
+    },
+    "game_config": {
+        "debug": true,
+        "skip_to_gameplay": true,
+        "starting_level": 0,
+        "draw_masks": true,
+        "god_mode": true,
+        "fastswimmer": false,
+        "quiet": true
+    }
 }

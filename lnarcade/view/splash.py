@@ -33,7 +33,7 @@ class SplashScreen(ViewState):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 from lnarcade.app import App
-                App.get_instance().manager.change_state("game_select")
+                App.get_instance().manager.run_view("game_select")
 
 
 

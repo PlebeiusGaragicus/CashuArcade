@@ -11,9 +11,10 @@ import subprocess
 import pygame
 
 from lnarcade.app import App, APP_SCREEN, SCREEN_WIDTH, SCREEN_HEIGHT
-from lnarcade.config import APP_FOLDER, MY_DIR
+from lnarcade.config import APP_FOLDER, MY_DIR, MISSING_SCREENSHOT
 from lnarcade.colors import *
-from lnarcade.utilities.find_games import get_app_manifests
+from lnarcade.utilities.find_games import load_game_manifests
+from lnarcade.utilities.manifest import GameManifest
 from lnarcade.view import ViewState
 from lnarcade.view.error import ErrorModalView
 
@@ -21,18 +22,38 @@ from lnarcade.view.error import ErrorModalView
 
 @dataclass
 class GameListItem:
-    module_name: str
-    game_name: str
-    manifest_dict: dict
-    image_path: str
+    game_dir_name: str  # Directory name of the game
+    manifest: GameManifest  # Full manifest object
     image: pygame.Surface = None
 
-    def __post_init__(self):  # This method is automatically called after `__init__`
+    def __post_init__(self):
+        """Load the game screenshot image."""
+        screenshot_path = self.manifest.get_screenshot_path()
+        
         try:
-            self.image = pygame.image.load(self.image_path)
-        except pygame.error:  # Pygame raises a generic error for file not found
-            image_path = os.path.expanduser(f"{MY_DIR}/resources/img/missing.jpg")
-            self.image = pygame.image.load(image_path)
+            if os.path.exists(screenshot_path):
+                self.image = pygame.image.load(screenshot_path)
+            else:
+                logger.warning(f"Screenshot not found: {screenshot_path}, using default")
+                self.image = pygame.image.load(MISSING_SCREENSHOT)
+        except pygame.error as e:
+            logger.error(f"Error loading screenshot {screenshot_path}: {e}")
+            self.image = pygame.image.load(MISSING_SCREENSHOT)
+    
+    @property
+    def game_name(self) -> str:
+        """Get the display name of the game."""
+        return self.manifest.launcher.name
+    
+    @property
+    def game_type(self) -> str:
+        """Get the type of the game."""
+        return self.manifest.launcher.type
+    
+    @property
+    def description(self) -> str:
+        """Get the game description."""
+        return self.manifest.launcher.description
 
 
 
@@ -51,30 +72,29 @@ class GameSelectView(ViewState):
         self.A_held = False
         self.show_mouse_pos = False
 
-        manifests = get_app_manifests()
-        logger.debug("manifests: %s", manifests)
+        # Load game manifests using new system
+        manifests = load_game_manifests()
+        logger.info(f"Loaded {len(manifests)} game manifests")
 
-        for (app_folder_name, manifest_dict) in manifests.items():
-            image_path = os.path.expanduser(f"~/{APP_FOLDER}/{app_folder_name}/image.png")
-
+        for game_dir_name, manifest in manifests.items():
             try:
-                game_name = f"{manifest_dict['name']}"
-
-                self.menu_items.append( GameListItem(app_folder_name, game_name, manifest_dict, image_path) )
-            except KeyError:
-                logger.error(f"KeyError in {app_folder_name} manifest.json")
+                game_item = GameListItem(game_dir_name, manifest)
+                self.menu_items.append(game_item)
+                logger.debug(f"Added game: {game_item.game_name}")
+            except Exception as e:
+                logger.error(f"Error creating GameListItem for {game_dir_name}: {e}")
                 continue
 
-        logger.debug("self.menu_items: %s", self.menu_items)
+        if not self.menu_items:
+            logger.warning("No games found!")
 
 
     def setup(self):
-        # arcade.set_background_color(arcade.color.BLACK)
         APP_SCREEN.fill(BLACK)
-
-        # TODO - clean this up...
-        if self.menu_items == []:
-            App.get_instance().window.show_view( ErrorModalView("No manifests found!", None) )
+        
+        if not self.menu_items:
+            logger.warning("No games found! Add games to ~/CashuArcade/")
+            # TODO: Implement error modal view for pygame
 
 
     def update(self):
@@ -86,6 +106,22 @@ class GameSelectView(ViewState):
 
 
     def draw(self):
+        # Handle no games case
+        if not self.menu_items:
+            APP_SCREEN.fill(BLACK)
+            font = pygame.font.SysFont(None, 60)
+            text = font.render("No games found!", True, RED)
+            text_rect = text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 50))
+            APP_SCREEN.blit(text, text_rect)
+            
+            font_small = pygame.font.SysFont(None, 40)
+            text2 = font_small.render("Add games to ~/CashuArcade/", True, WHITE)
+            text2_rect = text2.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 20))
+            APP_SCREEN.blit(text2, text2_rect)
+            
+            pygame.display.flip()
+            return
+        
         # SHOW GAME ARTWORK
         image = self.menu_items[self.selected_index].image
         scaled_image = pygame.transform.scale(image, (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -125,12 +161,10 @@ class GameSelectView(ViewState):
             APP_SCREEN.blit(text, (x, offset - i * 55))
 
         # Drawing game type
-        try:
-            game_type = self.menu_items[self.selected_index].manifest_dict["type"]
-            text = font_30.render(game_type, True, (255, 0, 0))  # arcade.color.RED
+        game_type = self.menu_items[self.selected_index].game_type
+        if game_type:
+            text = font_30.render(game_type, True, (255, 0, 0))  # RED
             APP_SCREEN.blit(text, (SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.05))
-        except KeyError:
-            pass
 
 
 
@@ -155,12 +189,15 @@ class GameSelectView(ViewState):
             
             # LAUNCH APP
             elif event.key == pygame.K_RETURN:
-                self.launch()
+                if self.menu_items:
+                    self.launch()
 
             elif event.key == pygame.K_UP:
-                self.selected_index = (self.selected_index + 1) % len(self.menu_items)
+                if self.menu_items:
+                    self.selected_index = (self.selected_index + 1) % len(self.menu_items)
             elif event.key == pygame.K_DOWN:
-                self.selected_index = (self.selected_index - 1) % len(self.menu_items)
+                if self.menu_items:
+                    self.selected_index = (self.selected_index - 1) % len(self.menu_items)
 
             # show IP address
             elif event.key == pygame.K_a:
@@ -185,80 +222,84 @@ class GameSelectView(ViewState):
     
 
     def show_mouse_position(self):
+        """Debug function to show mouse position (deprecated arcade code removed)."""
         if self.show_mouse_pos is False:
             return
-
-        anchor_x = "left"
-        offset = 20
-
-        if self.mouse_pos[0] > SCREEN_WIDTH * 0.5:
-            anchor_x = "right"
-
-        if self.mouse_pos[1] > SCREEN_HEIGHT * 0.5:
-            offset -= offset * 2
-
-        arcade.draw_text(f"{self.mouse_pos}", self.mouse_pos[0], self.mouse_pos[1] + offset, arcade.color.WHITE, font_size=16, anchor_x=anchor_x)
-        arcade.draw_text(f"{round(self.mouse_pos[0] / SCREEN_WIDTH * 100, 0)}%  {round(self.mouse_pos[1] / SCREEN_HEIGHT * 100, 0)}%", self.mouse_pos[0], self.mouse_pos[1] + offset * 2, arcade.color.GREEN, font_size=16, anchor_x=anchor_x)
-        arcade.draw_point(self.mouse_pos[0], self.mouse_pos[1], arcade.color.RED, 5)
+        
+        # TODO: Reimplement with pygame if needed
+        font = pygame.font.SysFont(None, 20)
+        text = font.render(f"{self.mouse_pos}", True, (255, 255, 255))
+        APP_SCREEN.blit(text, (self.mouse_pos[0] + 10, self.mouse_pos[1] + 10))
 
 
     def launch(self):
-        selected_app = self.menu_items[self.selected_index].module_name
-        logger.debug("Launching python module: %s", selected_app)
+        """Launch the selected game with proper venv support."""
+        selected_item = self.menu_items[self.selected_index]
+        manifest = selected_item.manifest
+        game_name = selected_item.game_name
+        
+        logger.info(f"Launching game: {game_name}")
 
-        # check for sufficient 'coins'
-        logger.debug("Checking for sufficient coins")
-        if not os.getenv("FREE_PLAY", False):
-            # toast("Excuse me... YOU NEED TO PAY UP!!") #TODO
-            logger.error("You don't have enough coins")
+        # Check for sufficient 'coins'
+        if not os.getenv("FREE_PLAY", "True").lower() == "true":
+            logger.error("FREE_PLAY is disabled and no coin system implemented")
+            # TODO: Implement coin/credit system
             return
 
-
-        # doesn't do anything...?  Is it because I'm no in a draw loop or something????
-        # arcade.set_background_color(arcade.color.BLACK)
-        # arcade.start_render()
+        # Build launch command
+        launch_config = manifest.launcher.launch
+        cwd = manifest.get_launch_cwd()
         
-        # DEPRECATED:
-        # if FULLSCREEN:
-            # self.window.set_fullscreen(False)
-        # self.window.set_visible(False) # doesn't do anything...?
-        # self.window.minimize()
+        # Check if we need to use a venv
+        venv_python = manifest.get_venv_python()
+        if venv_python:
+            command = venv_python
+            logger.debug(f"Using venv Python: {venv_python}")
+        else:
+            command = launch_config.command
+            logger.debug(f"Using system Python: {command}")
+        
+        # Build full command with args
+        args = [command] + launch_config.args
+        
+        logger.info(f"Launching: {' '.join(args)}")
+        logger.debug(f"Working directory: {cwd}")
 
-        args = ["python3", "-m", selected_app]
-        cwd = os.path.expanduser(f"~/{APP_FOLDER}")
-        logger.debug(f"subprocess.run({args=}, {cwd=})")
-
-        # pygame.display.toggle_fullscreen()
-        ret_code = subprocess.run(args, cwd=cwd).returncode # This is a blocking call - wait for game to run and exit
-
-        # self.process = subprocess.Popen(args, cwd=cwd)
-        # App.get_instance().process = subprocess.Popen(args, cwd=cwd)
-        # # This is a blocking call - wait for game to run and exit
-        # ret_code = self.process.wait()
-
-        if ret_code != 0:
-            logger.error(f"app '{selected_app}' returned non-zero! {ret_code=}")
-            # TODO - show error modal here
-            # self.window.show_view( ErrorModalView("App crashed!", self) )
-
-        # arcade.set_background_color(arcade.color.BLACK)
-        # self.window.set_visible(True) # doesn't do anything...?
-        # self.window.maximize()
-
-        # DEPRECATED:
-        # if FULLSCREEN:
-        #     self.window.set_fullscreen(True)
-        # pygame.init()
-        # pygame.display.toggle_fullscreen()
-
-        # pygame.display.get_active
-        # pygame.display.flip()
-
+        try:
+            # Launch the game (blocking call)
+            result = subprocess.run(
+                args,
+                cwd=cwd,
+                capture_output=False,  # Let game output go to console
+                text=True
+            )
+            
+            ret_code = result.returncode
+            
+            if ret_code != 0:
+                logger.error(f"Game '{game_name}' exited with code {ret_code}")
+                # TODO: Show error modal
+            else:
+                logger.info(f"Game '{game_name}' exited normally")
+        
+        except FileNotFoundError as e:
+            logger.error(f"Failed to launch game: {e}")
+            logger.error(f"Command not found: {command}")
+            # TODO: Show error modal
+        
+        except Exception as e:
+            logger.error(f"Error launching game: {e}")
+            # TODO: Show error modal
+        
+        # Restore display after game exits
+        logger.debug("Restoring display after game exit")
         global APP_SCREEN
         if platform.system() == 'Darwin':
-            APP_SCREEN = pygame.display.set_mode(flags=pygame.NOFRAME)
+            APP_SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags=pygame.NOFRAME)
         else:
             APP_SCREEN = pygame.display.set_mode(flags=pygame.FULLSCREEN | pygame.NOFRAME)
+        
+        pygame.display.set_caption("Lightning Arcade")
 
 
 
@@ -276,8 +317,10 @@ class GameSelectView(ViewState):
 
 
     def show_configuration(self):
+        """Show configuration info (deprecated arcade code removed)."""
         if self.A_held is False:
             return
-
-        ip = App.get_instance().get_ip_addr()
-        arcade.draw_text(f"IP: {ip}:8080", SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.05, arcade.color.GRAPE, font_size=16, anchor_x="center")
+        
+        # TODO: Reimplement with pygame if needed
+        # For now, just log that the feature is disabled
+        pass

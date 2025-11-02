@@ -5,3 +5,21 @@ icecream
 
 #TODO: This really needs all the requirements of any game it may run....
 # ... so in the README I need to add running `pip install -r ../LNApps/requirements.txt` or something
+
+python-dotenv
+
+pyglet
+
+pywebio
+
+pyftdi
+adafruit-circuitpython-seesaw
+adafruit-blinka
+adafruit-circuitpython-lis3dh
+
+adafruit-circuitpython-charlcd
+adafruit-circuitpython-rgb-display
+
+# NO SUCH PACKAGE
+# rainbowio
+# adafruit-circuitpython-rotaryio

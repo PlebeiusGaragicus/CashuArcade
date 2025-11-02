@@ -93,7 +93,8 @@ class App(Singleton):
 
         pygame.display.set_allow_screensaver(False)
 
-        if app.manifest.get("debug", False) == False:
+        debug_mode = app.manifest.get('game_config', {}).get('debug', app.manifest.get('debug', False))
+        if not debug_mode:
             pygame.mouse.set_visible(False)
 
         # global APP_SCREEN
@@ -103,7 +104,7 @@ class App(Singleton):
         # global SCREEN_HEIGHT
         globals.SCREEN_HEIGHT = app.height
 
-        pygame.display.set_caption( app.manifest['name'] ) # NOTE: potential KeyError
+        pygame.display.set_caption( app.manifest.get('name') or app.manifest.get('launcher', {}).get('name', 'Game') )
 
         #### setup views
         app.viewmanager = ViewManager()
@@ -171,4 +172,7 @@ class App(Singleton):
         # sys.exit()
 
     def manifest_key_value(self, key: str, default = None):
+        # Check game_config first (new format), then root level (old format)
+        if 'game_config' in self.manifest:
+            return self.manifest['game_config'].get(key, default)
         return self.manifest.get(key, default)

@@ -8,28 +8,13 @@ logger = logging.getLogger()
 
 import pygame
 
-from lnarcade.logger import setup_logging
+from gamelib.singleton import Singleton
+from gamelib.logger import setup_logging
 from lnarcade.config import MY_DIR, DOT_ENV_PATH, create_default_dot_env, FPS
 
 APP_SCREEN: pygame.Surface = None
 SCREEN_HEIGHT = None
 SCREEN_WIDTH = None
-
-
-class Singleton:
-    _instance = None
-
-    def __init__(self):
-        # Singleton pattern must prevent normal instantiation
-        raise Exception("Cannot directly instantiate a Singleton. Access via get_instance()")
-
-    @classmethod
-    def get_instance(cls):
-        # This is the only way to access the one and only instance
-        if cls._instance is None:
-            cls._instance = cls.__new__(cls)
-        return cls._instance
-
 
 
 class App(Singleton):
@@ -105,10 +90,10 @@ class App(Singleton):
         app.manager = ViewStateManager()
 
         from lnarcade.view.splash import SplashScreen
-        app.manager.add_state("splash", SplashScreen())
+        app.manager.add_view("splash", SplashScreen())
 
         from lnarcade.view.game_select import GameSelectView
-        app.manager.add_state("game_select", GameSelectView())
+        app.manager.add_view("game_select", GameSelectView())
 
 
         ### SETUP 'HELPER' THREADS ###
@@ -138,8 +123,8 @@ class App(Singleton):
             logger.debug("skipping the control thread (becuase we're on MacOS))")
 
 
-        # self.manager.change_state("splash")
-        self.manager.change_state("game_select")
+        # self.manager.run_view("splash")
+        self.manager.run_view("game_select")
 
         try:
             running = True

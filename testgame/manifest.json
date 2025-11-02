@@ -1,0 +1,19 @@
+{
+    "launcher": {
+        "name": "Smack the Cat!",
+        "description": "test",
+        "author": "CashuArcade",
+        "version": "1.0.0",
+        "type": "pygame",
+        "screenshot": "screenshot.png",
+        "launch": {
+            "command": "python",
+            "args": ["-m", "testgame"],
+            "venv": null,
+            "cwd": "."
+        }
+    },
+    "game_config": {
+        "debug": true
+    }
+}
