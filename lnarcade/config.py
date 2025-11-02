@@ -35,17 +35,18 @@ def get_game_search_paths() -> List[str]:
     if env_paths:
         return [p.strip() for p in env_paths.split(":")]
     
-    # Default: Search in the parent directory of lnarcade (where games are submodules)
+    # Default: Search in the GAMES directory
     # This is the CashuArcade root directory
     parent_dir = os.path.dirname(MY_DIR)
+    games_dir = os.path.join(parent_dir, "GAMES")
     
-    # Also check ~/CashuArcade as fallback
-    home_arcade = os.path.expanduser(os.path.join("~", APP_FOLDER))
+    # Also check ~/CashuArcade/GAMES as fallback
+    home_arcade = os.path.expanduser(os.path.join("~", APP_FOLDER, "GAMES"))
     
-    search_paths = [parent_dir]
+    search_paths = [games_dir]
     
-    # Add home directory if it exists and is different from parent_dir
-    if os.path.exists(home_arcade) and os.path.abspath(home_arcade) != os.path.abspath(parent_dir):
+    # Add home directory if it exists and is different from games_dir
+    if os.path.exists(home_arcade) and os.path.abspath(home_arcade) != os.path.abspath(games_dir):
         search_paths.append(home_arcade)
     
     return search_paths

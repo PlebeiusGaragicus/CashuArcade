@@ -1,15 +1,15 @@
 # CashuArcade
 
-A pygame-based arcade launcher for macOS that runs Python games as submodules with isolated virtual environments.
+A pygame-based arcade launcher for macOS that runs Python games with a shared virtual environment.
 
 ## Features
 
 - 🎮 Game launcher with visual menu
-- 🔒 Isolated virtual environments per game
-- 📦 Games as submodules in the same repository
+- 📦 Games organized in GAMES/ directory
 - ⚙️ Manifest-based game configuration
 - 🖼️ Screenshot display for each game
 - 🎨 Shared gamelib for common functionality
+- 🐍 Single shared virtual environment for simplicity
 
 ## Quick Start
 
@@ -23,22 +23,29 @@ cp config.env.sample config.env
 nano config.env
 ```
 
-### 2. Setup Virtual Environments
+### 2. Setup Virtual Environment
 
 ```bash
-# Automated setup (recommended)
-./setup_venvs.sh
+# Create shared venv
+python3 -m venv venv
 
-# Or manual setup
-python3 -m venv .venv_launcher
-source .venv_launcher/bin/activate
+# Activate and install dependencies
+source venv/bin/activate
 pip install -r requirements.txt
+
+# Install gamelib and games
+pip install -e ./gamelib
+pip install -e ./GAMES/fishyfrens
 ```
 
 ### 3. Run the Launcher
 
 ```bash
-source .venv_launcher/bin/activate
+# Use the launcher script
+./arcade
+
+# Or manually
+source venv/bin/activate
 python -m lnarcade
 ```
 
@@ -46,57 +53,68 @@ python -m lnarcade
 
 ```
 CashuArcade/
+├── arcade                  # Launcher script
+├── fishy                   # Direct game launcher script
 ├── config.env              # Configuration (copy from config.env.sample)
 ├── config.env.sample       # Sample configuration
-├── .venv_launcher/         # Launcher virtual environment
+├── venv/                   # Shared virtual environment
 ├── lnarcade/               # Launcher code
 ├── gamelib/                # Shared game library
-├── fishyfrens/             # Example game
-│   ├── .venv/             # Game's virtual environment
-│   ├── manifest.json      # Game metadata
-│   └── ...
-└── [other games]/          # Additional games
+├── GAMES/                  # Games directory
+│   ├── fishyfrens/        # Example game
+│   │   ├── manifest.json  # Game metadata
+│   │   ├── setup.py       # Package setup
+│   │   └── ...
+│   └── testgame/          # Another game
+└── docs/                   # Documentation
 ```
 
 ## Creating a New Game
 
-See [MANIFEST_GUIDE.md](MANIFEST_GUIDE.md) for detailed instructions.
+See [docs/MANIFEST_GUIDE.md](docs/MANIFEST_GUIDE.md) for detailed instructions.
 
 Quick version:
 
 ```bash
 # 1. Create game directory
+cd GAMES
 mkdir mygame && cd mygame
 
-# 2. Setup venv
-python3 -m venv .venv
-source .venv/bin/activate
-pip install pygame
-
-# 3. Create manifest
-cp ../lnarcade/manifest_template.json manifest.json
-# Edit manifest.json
-
-# 4. Create game code
+# 2. Create game package structure
 mkdir mygame
-touch mygame/__init__.py
-touch mygame/__main__.py
-# Add your game code
+touch mygame/__init__.py mygame/__main__.py
 
-# 5. Add screenshot
-# Add screenshot.png
+# 3. Create setup.py
+cat > setup.py << 'EOF'
+from setuptools import setup
+setup(
+    name="mygame",
+    version="1.0.0",
+    packages=["mygame"],
+    package_dir={"mygame": "."},
+    install_requires=["pygame"],
+)
+EOF
 
-# 6. Test
+# 4. Create manifest.json
+# Set "venv": null to use shared venv
+
+# 5. Add screenshot.png
+
+# 6. Install and test
+cd ../..
+source venv/bin/activate
+pip install -e ./GAMES/mygame
 python -m mygame
 ```
 
 ## Documentation
 
-- **[BREAKING_CHANGES.md](BREAKING_CHANGES.md)** - Migration guide from old structure
-- **[MANIFEST_GUIDE.md](MANIFEST_GUIDE.md)** - How to create game manifests
-- **[VENV_SETUP.md](VENV_SETUP.md)** - Virtual environment setup guide
-- **[GAMELIB_INTEGRATION.md](GAMELIB_INTEGRATION.md)** - Using gamelib in your games
-- **[REFACTOR_SUMMARY.md](REFACTOR_SUMMARY.md)** - Technical details of recent refactor
+See the `docs/` directory for detailed documentation:
+
+- **[MANIFEST_GUIDE.md](docs/MANIFEST_GUIDE.md)** - How to create game manifests
+- **[GAMELIB_INTEGRATION.md](docs/GAMELIB_INTEGRATION.md)** - Using gamelib in your games
+- **[GAMES/README.md](GAMES/README.md)** - Games directory overview
 
 ## Configuration
 
